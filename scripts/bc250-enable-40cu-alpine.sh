@@ -98,7 +98,7 @@ patch_source() {
   fi
 
   local patchdir
-  patchdir="$(dirname "$0")/../patch"
+  patchdir="$(dirname "$(realpath "$0")")/../patch"
 
   info "Applying 40-CU patches..."
   cd "$MODSRC"

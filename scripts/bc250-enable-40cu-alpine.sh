@@ -113,7 +113,7 @@ patch_source() {
 	sorted_nums="$(printf '%s\n' $patch_nums | sort -n)"
 
 	# Patches that default to NO (opt-in)
-	skip_default="12 19 21 28"
+	skip_default="12 17 19 21 28"
 
 	# Collect selected patches
 	selected_patches=""
@@ -140,7 +140,7 @@ patch_source() {
 		14) desc="14-gmc-kiq-bypass-dead-gpu: KIQ bypass + dead-GPU detection in gmc_v10_0 TLB flush" ;;
 		15) desc="15-amdgpu-gmc-kiq-bypass: KIQ bypass + dead-GPU detection in centralized GMC code" ;;
 		16) desc="16-cu-unlock-cc-spi-safe-no-rlc: BC-250 40 CU unlock — CC+SPI only, NO RLC_PG (safe for ROCm+HSA)" ;;
-		17) desc="17-bc250-gfx1013-fault-probe: gfx1013 instruction-fetch fault probe — diagnostic, report-only" ;;
+		17) desc="17-bc250-gfx1013-fault-probe: gfx1013 instruction-fetch fault probe — diagnostic-only, fails to compile on 6.18.53 (missing GMC9 constants), not needed for CU unlock" ;;
 		18) desc="18-ttm-guard-null-pages-on-unpopulate: Guard NULL ttm->pages[] on unpopulate — survive compute faults" ;;
 		19) desc="19-bc250-kfd-skip-sdma0: BC-250 SDMA0 skip — restrict user queues to SDMA1" ;;
 		20) desc="20-amdgpu-ttm-populate-null-guard: READ_ONCE + return -ENOMEM NULL guard on TTM populate path" ;;

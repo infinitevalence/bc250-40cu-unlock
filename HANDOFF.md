@@ -1,144 +1,38 @@
-# Task: Rewrite `bc250-enable-40cu-alpine.sh` to POSIX sh
+# Handoff: Patch 17 compilation failure — undeclared GMC9 fault source constants
 
-## Breaking issue
-Alpine Linux does **not** ship `bash` by default — it ships `busybox ash` as `/bin/sh` and `/bin/bash` (a symlink). The shebang `#!/usr/bin/env bash` fails on vanilla Alpine: no bash binary exists, script won't start.
+## The issue
 
-**Goal:** rewrite the entire script as `#!/bin/sh` using only POSIX sh constructs. Each task below is self-contained — execute them sequentially.
+Kernel 6.18.53 does not define these three constants used by patch 17
+(`17-bc250-gfx1013-fault-probe.patch`):
 
----
+- `AMDGPU_GMC9_FAULT_SOURCE_DATA_RETRY`
+- `AMDGPU_GMC9_FAULT_SOURCE_DATA_EXE`
+- `AMDGPU_GMC9_FAULT_SOURCE_DATA_WRITE`
 
-## Task 1 — Shebang and `set`
+The error is in `gmc_v10_0_process_interrupt()` at lines 205–213 of
+`gmc_v10_0.c`. The patch is **diagnostic, report-only** — it changes no
+control flow and fixes nothing. It's not required for the 40 CU unlock.
 
-**Change:**
-- `#!/usr/bin/env bash` → `#!/bin/sh`
-- `set -euo pipefail` → `set -e` (pipefail is not POSIX; POSIX sh has no guarantee)
+## Recommended fix (pick one)
 
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
+### Option A — Drop patch 17 (simpler)
 
-**After:** Script starts on vanilla Alpine. `set -e` still aborts on error.
+In `bc250-enable-40cu-alpine.sh`, add patch 17 to the `skip_default` list
+(so it defaults to N on interactive prompt). Or hard-remove it from the
+build. This is the simplest path — the probe is purely diagnostic.
 
----
+### Option B — Define the constants locally in the patch
 
-## Task 2 — Remove all `local` declarations
+Add `#define` statements at the top of the patch's hunk in
+`gmc_v10_0.c` for these three macros. They are bitmask values used to
+extract bits from `entry->src_data[1]`. You'll need to look up the actual
+bit positions in a kernel where they're defined (e.g. a newer amdgull
+driver tree), or reverse-engineer them from the bit layout of the GMC9
+fault source data register.
 
-**Change:** Replace every `local` declaration with a unique variable name using a function-name prefix to avoid scope collision. For example:
+## Context
 
-```sh
-# Before:
-check_bc250() {
-  local detected=0
-  ...
-}
-
-# After:
-check_bc250() {
-  detected=0
-  ...
-}
-```
-
-For functions that need to return a value, use `printf '%s\n' "$value"` and call via command substitution.
-
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
-
-**After:** No `local` keywords remain. All variables are global (intentional for POSIX sh).
-
----
-
-## Task 3 — Replace `declare -A` (associative arrays)
-
-**Change:** Replace associative arrays with a simple file or space-separated string lookup.
-
-```sh
-# Before:
-declare -A skip_default
-skip_default[12]=1
-skip_default[19]=1
-# ... etc.
-
-# After:
-skip_default="12 19 21 28"
-# Check with: echo "$skip_default" | grep -qw "$pnum"
-```
-
-Or use a small temp file with one patch number per line, read with `grep`.
-
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
-
-**After:** No `declare -A` remains. Patch skip list works via simple string/file lookup.
-
----
-
-## Task 4 — Replace bash arrays with POSIX-compatible strings
-
-**Change:** Replace all bash array constructs with POSIX space-separated strings.
-
-```sh
-# Before:
-declare -a patch_nums=()
-patch_nums+=("$pnum")
-for pnum in "${patch_nums[@]}"; do ...
-
-# After:
-patch_nums=""
-patch_nums="${patch_nums} $pnum"
-for pnum in $patch_nums; do ...
-```
-
-Also replace `selected_patches+=("$pnum")` with space-separated string append, and `${#selected_patches[@]}` with `echo "$selected_patches" | wc -w` or `echo "$selected_patches" | grep -o ' ' | wc -l` for count.
-
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
-
-**After:** No bash arrays (`( )`, `+=`, `[@]`) remain.
-
----
-
-## Task 5 — Rewrite `patch_source()` interactive selection
-
-**Change:** The entire interactive patch selection (the `for pnum in "${sorted_nums[@]}"` loop with `read` prompts, `case` parsing, array building) needs to be rewritten as a POSIX sh loop.
-
-The logic: iterate patch numbers 01–30, show a yes/no prompt for each, build a string of selected numbers, then apply.
-
-Key changes:
-- Remove `${#selected_patches[@]}`, `selected_patches+=("$pnum")`, `case` inside loop
-- Use space-separated string: `selected="${selected} $pnum"`
-- Use `echo "$selected" | wc -w` for count
-- Use `echo "$selected" | tr ' ' '\n' | sort -n` for ordered iteration
-
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
-
-**After:** No bash array syntax in `patch_source()`. Interactive prompts work identically.
-
----
-
-## Task 6 — Fix remaining bashisms
-
-**Change:** Scan for any remaining bash-specific constructs and fix them:
-
-| Bashism | POSIX fix |
-|---------|-----------|
-| `[[ ]]` | Use `[ ]` |
-| `${var:-}` or `${var:=}` with `:` | OK in POSIX, but check edge cases |
-| `printf '\033[...` | OK in POSIX |
-| `read -r` | OK in POSIX |
-| `command -v` | OK in POSIX |
-| `realpath` | Busybox has it; fine |
-| `basename` | Busybox has it; fine |
-| `cut`, `sort`, `head`, `tail`, `wc` | Busybox has them; fine |
-| `nproc` | Busybox has it; fine |
-| `dmesg` | Busybox has it; fine |
-
-Also verify: `grep -qr`, `grep -o`, `grep -i` all work with busybox grep.
-
-**Files:** `scripts/bc250-enable-40cu-alpine.sh`
-
-**After:** Zero bashisms remain. Script runs on busybox ash.
-
----
-
-## Verification checklist (run after all tasks)
-
-1. `bash -n scripts/bc250-enable-40cu-alpine.sh` — no syntax errors
-2. `dash -n scripts/bc250-enable-40cu-alpine.sh` — no syntax errors (dash = POSIX sh)
-3. `busybox sh scripts/bc250-enable-40cu-alpine.sh --help` — runs without crash (no-op since no `--help`, but proves parsing works)
-4. Verify `patch` is added to `check_deps` apk packages (bonus fix found during review)
+- The script (`scripts/bc250-enable-40cu-alpine.sh`) selects patches from
+  `patch/` directory before applying them to kernel source.
+- Patch 17 sits at line 180-223 of `gmc_v10_0.c` in the kernel source.
+- The fault probe is gated by `amdgpu.bc250_fault_probe` (default 1).

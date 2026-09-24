@@ -262,7 +262,6 @@ do_build() {
 	check_bc250
 	find_source
 	patch_source
-	built
 	built="$(build_module)"
 	install_module "$built"
 	info "Build complete! Run: doas $0 enable"

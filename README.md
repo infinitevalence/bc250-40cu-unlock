@@ -48,8 +48,8 @@ Requirements: `gcc`, `make`, `zstd`, kernel headers (`linux-headers-$(uname -r)`
 # Get your kernel source
 cd /path/to/linux-source/drivers/gpu/drm/amd/amdgpu/
 
-# Apply
-patch -p5 < /path/to/bc250-40cu-unlock/patch/bc250-40cu-amdgpu.patch
+# Apply (use patch 16 — CC+SPI only, safe for ROCm/HSA)
+patch -p5 < /path/to/bc250-40cu-unlock/patch/16-cu-unlock-cc-spi-safe-no-rlc.patch
 
 # Build just amdgpu
 make -C /lib/modules/$(uname -r)/build M=$(pwd) -j$(nproc) modules
@@ -65,7 +65,7 @@ sudo reboot
 
 ### Option 3: CachyOS / Arch
 
-Apply `patch/bc250-40cu-amdgpu.patch` to your kernel PKGBUILD patch set, rebuild, add the modprobe config.
+Apply `patch/16-cu-unlock-cc-spi-safe-no-rlc.patch` to your kernel PKGBUILD patch set, rebuild, add the modprobe config.
 
 ## Verification
 

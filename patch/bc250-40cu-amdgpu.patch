@@ -4,6 +4,10 @@ Date: Mon, 18 May 2026 20:00:00 +0000
 Subject: [PATCH] drm/amdgpu/gfx10: BC-250 40 CU unlock via CC + SPI register
  writes
 
+[DEPRECATED] Superseded by 16-cu-unlock-cc-spi-safe-no-rlc.patch.
+This older version included RLC writes that hang ROCm/HSA.
+Use 16 instead (CC+SPI only, safe for ROCm+HSA).
+
 Re-enable all 40 harvested CUs on the AMD BC-250 (gfx1013 / Cyan
 Skillfish / salvaged PS5 APU) by writing two hardware registers during
 CU enumeration in gfx_v10_0_get_cu_info():

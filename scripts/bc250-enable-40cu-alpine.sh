@@ -179,14 +179,13 @@ patch_source() {
 				selected_patches="${selected_patches} ${pnum}"
 				;;
 			n|no)
-				# Explicit no, or empty for opt-in patches (default n)
-				# For normal patches empty means yes (default Y)
-				if ! echo "$skip_default" | grep -qw "$pnum" && [ -z "$ans" ]; then
-					selected_patches="${selected_patches} ${pnum}"
-				fi
+				# Explicit no
 				;;
 			*)
-				# Invalid input, reject
+				# Empty = use default: accept if default Y, reject if default N
+				if ! echo "$skip_default" | grep -qw "$pnum"; then
+					selected_patches="${selected_patches} ${pnum}"
+				fi
 				;;
 		esac
 	done

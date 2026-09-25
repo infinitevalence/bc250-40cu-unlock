@@ -1,31 +1,12 @@
-Add the smu_cmn.c definitions for the send-raw debugfs interface that 0008
-(cac-weight-and-sendraw-debugfs) declares + calls but does not define. Without
-this the P01-P18 series fails to link (smu_cmn_create_send_raw_debugfs undefined).
-Extracted from the board's vendored amdgpu/0001-add-debugfs-smu-send-raw.patch,
-smu_cmn.c hunk only (the .h decl + amdgpu_smu.c call are already in 0008).
----
---- a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c	2026-04-27 11:50:41.000000000 -0400
-+++ b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c	2026-04-30 21:02:45.510871049 -0400
-@@ -1444,3 +1444,158 @@
- 
- 	return ret;
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
+index a8961a8..3384175 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
++++ b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
+@@ -1195,3 +1195,141 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
+ 		*backend_workload_mask |= 1 << workload_type;
+ 	}
  }
 +
-+/**
-+ * smu_cmn_send_raw_smc_msg -- send arbitrary u16 msgid, return raw resp
-+ * @smu: SMU context
-+ * @raw_msg_index: any u16 msgid (NOT translated through cmn2asic mapping)
-+ * @param: u32 parameter (-> first arg reg, typically C2PMSG_82)
-+ * @extra: u32 second arg (-> arg_regs[1], typically C2PMSG_81 — used by
-+ *         BC-250/PS5 BAPM cmds 0x2f/0x30/0x33 for the value/weight)
-+ * @resp_out: out: raw response register (0x01 OK, 0xFE unknown, 0xFF fail)
-+ * @arg_out:  out: arg_regs[0] at completion
-+ *
-+ * Designed for SMU reverse-engineering. Takes smu->msg_ctl.lock so it
-+ * serializes with amdgpu's metric polling and cannot wedge the mailbox.
-+ * Returns 0 regardless of resp code (caller inspects @resp_out); -errno
-+ * only on hard failure.
-+ */
 +int smu_cmn_send_raw_smc_msg(struct smu_context *smu,
 +			     uint16_t raw_msg_index,
 +			     uint32_t param,
@@ -34,42 +15,34 @@ smu_cmn.c hunk only (the .h decl + amdgpu_smu.c call are already in 0008).
 +			     uint32_t *arg_out)
 +{
 +	struct amdgpu_device *adev = smu->adev;
-+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
-+	struct smu_msg_config *cfg = &ctl->config;
 +	u32 reg;
 +
 +	if (adev->no_hw_access)
 +		return -ENODEV;
 +
-+	mutex_lock(&ctl->lock);
++	mutex_lock(&smu->message_lock);
 +
 +	if (smu->smc_fw_state == SMU_FW_HANG) {
-+		mutex_unlock(&ctl->lock);
++		mutex_unlock(&smu->message_lock);
 +		return -EREMOTEIO;
 +	}
 +	if (smu->smc_fw_state == SMU_FW_INIT)
 +		smu->smc_fw_state = SMU_FW_RUNTIME;
 +	else
-+		(void)__smu_msg_v1_poll_stat(ctl, 0); /* drain pending */
++		(void)__smu_cmn_poll_stat(smu); /* drain pending */
 +
-+	WREG32(cfg->resp_reg, 0);
-+	if (cfg->num_arg_regs > 0)
-+		WREG32(cfg->arg_regs[0], param);
-+	/* C2PMSG_81 = arg_regs[0] - 1 across MP1 v9/10/11; cyan_skillfish
-+	 * configures only num_arg_regs=1, but PS5/BC-250 BAPM cmds 0x2f/
-+	 * 0x30/0x33 expect a second arg in C2PMSG_81. */
-+	if (cfg->num_arg_regs > 1)
-+		WREG32(cfg->arg_regs[1], extra);
-+	else if (cfg->num_arg_regs == 1)
-+		WREG32(cfg->arg_regs[0] - 1, extra);
-+	WREG32(cfg->msg_reg, raw_msg_index);
++	WREG32(smu->resp_reg, 0);
++	WREG32(smu->param_reg, param);
++	WREG32(smu->param_reg - 1, extra);
++	WREG32(smu->msg_reg, raw_msg_index);
 +
-+	reg = __smu_msg_v1_poll_stat(ctl, 0);
-+	if (resp_out) *resp_out = reg;
-+	if (arg_out && cfg->num_arg_regs > 0)
-+		*arg_out = RREG32(cfg->arg_regs[0]);
++	reg = __smu_cmn_poll_stat(smu);
++	if (resp_out)
++		*resp_out = reg;
++	if (arg_out)
++		*arg_out = RREG32(smu->param_reg);
 +
-+	mutex_unlock(&ctl->lock);
++	mutex_unlock(&smu->message_lock);
 +	return 0;
 +}
 +
@@ -113,17 +86,23 @@ smu_cmn.c hunk only (the .h decl + amdgpu_smu.c call are already in 0008).
 +	unsigned int msgid, param, extra = 0;
 +	int n, ret;
 +
-+	if (count >= sizeof(line)) return -EINVAL;
-+	if (copy_from_user(line, buf, count)) return -EFAULT;
++	if (count >= sizeof(line))
++		return -EINVAL;
++	if (copy_from_user(line, buf, count))
++		return -EFAULT;
 +	line[count] = '\0';
 +	n = sscanf(line, "%x %x %x", &msgid, &param, &extra);
-+	if (n < 2) return -EINVAL;
-+	if (msgid > 0xffff) return -EINVAL;
-+	if (!smu) return -ENODEV;
++	if (n < 2)
++		return -EINVAL;
++	if (msgid > 0xffff)
++		return -EINVAL;
++	if (!smu)
++		return -ENODEV;
 +
 +	ret = smu_cmn_send_raw_smc_msg(smu, (u16)msgid, param, extra,
 +				       &s->last_resp, &s->last_arg);
-+	if (ret) return ret;
++	if (ret)
++		return ret;
 +	s->valid = true;
 +	return count;
 +}
@@ -143,12 +122,12 @@ smu_cmn.c hunk only (the .h decl + amdgpu_smu.c call are already in 0008).
 +}
 +
 +static const struct file_operations smu_send_raw_fops = {
-+	.owner   = THIS_MODULE,
-+	.open    = smu_send_raw_open,
++	.owner	 = THIS_MODULE,
++	.open	 = smu_send_raw_open,
 +	.release = smu_send_raw_release,
-+	.write   = smu_send_raw_write,
-+	.read    = smu_send_raw_read,
-+	.llseek  = default_llseek,
++	.write	 = smu_send_raw_write,
++	.read	 = smu_send_raw_read,
++	.llseek	 = default_llseek,
 +};
 +
 +void smu_cmn_create_send_raw_debugfs(struct amdgpu_device *adev)

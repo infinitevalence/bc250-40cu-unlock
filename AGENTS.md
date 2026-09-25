@@ -136,11 +136,19 @@ SSH_AUTH_SOCK=/run/user/1000/openssh_agent git push origin ALPINE
 > `eval $(ssh-agent -s)` will create an orphaned agent whose socket the
 > system won't resolve.
 > 
-> **Agent Execution Note:** For non-interactive agent runs where passphrase prompting blocks execution:
-> 1. **Git Credential Store (Recommended):** Store PAT securely outside the repository:
+> **Agent Execution Note:** For non-interactive agent runs with passphrase-protected SSH keys:
+> 1. **Automated SSH Agent Loading (`SSH_ASKPASS`):**
 >    ```sh
->    git config --global credential.helper store
->    echo "https://YOUR_PAT:x-oauth-basic@github.com" >> ~/.git-credentials
+>    export SSH_AUTH_SOCK=/run/user/1000/openssh_agent
+>    export DISPLAY=dummy
+>    export SSH_ASKPASS_REQUIRE=force
+>    export SSH_ASKPASS=/tmp/askpass.sh
+>    printf '#!/bin/sh\necho "YOUR_PASSPHRASE"\n' > /tmp/askpass.sh
+>    chmod +x /tmp/askpass.sh
+>    setsid ssh-add ~/.ssh/id_rsa
+>    rm /tmp/askpass.sh
+>    
+>    cd /home/infinitevalence/bc250-40cu-unlock
+>    git push origin ALPINE
 >    ```
->    Git authenticates automatically without exposing tokens in code or repo files.
-> 2. **Dedicated Unencrypted Deploy Key:** Place a passphrase-free deploy key at `~/.ssh/id_ed25519_deploy` (outside repository tracking) and reference it in `~/.ssh/config`.
+> 2. **Git Credential Store:** Alternatively, use a PAT via `~/.git-credentials`.

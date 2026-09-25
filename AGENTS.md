@@ -43,57 +43,64 @@ Primary script: **`scripts/bc250-enable-40cu-alpine.sh`** — builds and install
 ├── ERROR.md
 ├── HANDOFF.md
 ├── README.md
+├── bc250-alpine-6.18.53/
+│  ├── 07-cac-weight-and-sendraw-debugfs.patch
+│  └── 08-smu-cmn-send-raw-debugfs-definitions.patch
 ├── docs/
-│   ├── technical-report.md
-│   ├── whitepaper-cu-unlock.pdf
-│   └── whitepaper-cu-unlock.tex
+│  ├── technical-report.md
+│  ├── whitepaper-cu-unlock.pdf
+│  └── whitepaper-cu-unlock.tex
+├── kernel-6.18.53-context/
+│  ├── amdgpu_pm.h
+│  ├── amdgpu_smu.h
+│  ├── smu_cmn.c
+│  ├── smu_cmn.h
+│  └── smu_internal.h
 ├── patch/
-│   ├── 01-declare-20-smu-message-enums.patch
-│   ├── 02-map-23-pmfw-messages-raise-sclk-max.patch
-│   ├── 03-gfx-clock-force-and-dpm-levels.patch
-│   ├── 04-start-pmfw-telemetry-reporting.patch
-│   ├── 05-raceless-direct-gfxclk-query.patch
-│   ├── 06-read-cac-weight-baselines.patch
-│   ├── 07-cac-weight-and-sendraw-debugfs.patch
-│   ├── 08-smu-cmn-send-raw-debugfs-definitions.patch
-│   ├── 09-cpu-cclk-soft-limits-debugfs.patch
-│   ├── 10-print-full-32bit-cac-value.patch
-│   ├── 11-full-telemetry-dump-debugfs.patch
-│   ├── 12-unlock-all-40-compute-units.patch
-│   ├── 13-gfxoff-disable-gfx1013.patch
-│   ├── 14-gmc-kiq-bypass-dead-gpu.patch
-│   ├── 15-amdgpu-gmc-kiq-bypass.patch
-│   ├── 16-cu-unlock-cc-spi-safe-no-rlc.patch
-│   ├── 17-bc250-gfx1013-fault-probe.patch
-│   ├── 18-ttm-guard-null-pages-on-unpopulate.patch
-│   ├── 19-bc250-kfd-skip-sdma0.patch
-│   ├── 20-amdgpu-ttm-populate-null-guard.patch
-│   ├── 21-amdgpu-gmc-flush-pasid-kiq.patch
-│   ├── 22-amdgpu-ttm-fno-lto.patch
-│   ├── 23-gb-addr-config-num-se.patch
-│   ├── 24-gmc-v10-flush-all-vmids.patch
-│   ├── 25-bc250-flush-tlb-by-runlist.patch
-│   ├── 26-bc250-sdma-firmware-override.patch
-│   ├── 27-bc250-early-sdma-trap.patch
-│   ├── 28-bc250-8core-telemetry.patch
-│   ├── 29-bc250-tmr-discovery-offset-fix.patch
-│   ├── 30-cyan-skillfish2-hardcoded-fallback.patch
-│   ├── ANALYSIS-gfx1013-compute-defect.md
-│   ├── BC250-PRODUCTION-GUIDE.md
-│   ├── NOTICE
-│   ├── SERIES.md
-│   ├── bc250-40cu-amdgpu.patch
-│   └── bc250-cachyos-7.0.9/   (copy of above patch set for CachyOS)
+│  ├── 01-declare-20-smu-message-enums.patch
+│  ├── 02-map-23-pmfw-messages-raise-sclk-max.patch
+│  ├── 03-gfx-clock-force-and-dpm-levels.patch
+│  ├── 04-start-pmfw-telemetry-reporting.patch
+│  ├── 05-raceless-direct-gfxclk-query.patch
+│  ├── 06-read-cac-weight-baselines.patch
+│  ├── 07-cac-weight-and-sendraw-debugfs.patch
+│  ├── 08-smu-cmn-send-raw-debugfs-definitions.patch
+│  ├── 09-cpu-cclk-soft-limits-debugfs.patch
+│  ├── 10-print-full-32bit-cac-value.patch
+│  ├── 11-full-telemetry-dump-debugfs.patch
+│  ├── 12-unlock-all-40-compute-units.patch
+│  ├── 13-gfxoff-disable-gfx1013.patch
+│  ├── 14-gmc-kiq-bypass-dead-gpu.patch
+│  ├── 15-amdgpu-gmc-kiq-bypass.patch
+│  ├── 16-cu-unlock-cc-spi-safe-no-rlc.patch
+│  ├── 17-bc250-gfx1013-fault-probe.patch
+│  ├── 18-ttm-guard-null-pages-on-unpopulate.patch
+│  ├── 19-bc250-kfd-skip-sdma0.patch
+│  ├── 20-amdgpu-ttm-populate-null-guard.patch
+│  ├── 21-amdgpu-gmc-flush-pasid-kiq.patch
+│  ├── 22-amdgpu-ttm-fno-lto.patch
+│  ├── 23-gb-addr-config-num-se.patch
+│  ├── 24-gmc-v10-flush-all-vmids.patch
+│  ├── 25-bc250-flush-tlb-by-runlist.patch
+│  ├── 26-bc250-sdma-firmware-override.patch
+│  ├── 27-bc250-early-sdma-trap.patch
+│  ├── 28-bc250-8core-telemetry.patch
+│  ├── 29-bc250-tmr-discovery-offset-fix.patch
+│  ├── 30-cyan-skillfish2-hardcoded-fallback.patch
+│  ├── ANALYSIS-gfx1013-compute-defect.md
+│  ├── BC250-PRODUCTION-GUIDE.md
+│  ├── NOTICE
+│  └── SERIES.md
 └── scripts/
-    ├── bc250-40cu-benchmark.sh
-    ├── bc250-compute-verify.sh
-    ├── bc250-cu-health-test.sh
-    ├── bc250-cu-mask.sh
-    ├── bc250-enable-40cu-alpine.sh   ← primary focus
-    ├── bc250-enable-40cu-arch.sh
-    ├── bc250-enable-40cu-fedora.sh
-    ├── bc250-enable-40cu.sh
-    └── cu_map.sh
+  ├── bc250-40cu-benchmark.sh
+  ├── bc250-compute-verify.sh
+  ├── bc250-cu-health-test.sh
+  ├── bc250-cu-mask.sh
+  ├── bc250-enable-40cu-alpine.sh  ← primary focus
+  ├── bc250-enable-40cu-arch.sh
+  ├── bc250-enable-40cu-fedora.sh
+  ├── bc250-enable-40cu.sh
+  └── cu_map.sh
 ```
 
 ### Key Areas
@@ -104,6 +111,8 @@ Primary script: **`scripts/bc250-enable-40cu-alpine.sh`** — builds and install
 | **`scripts/bc250-enable-40cu-alpine.sh`** | Main build/install script for Alpine Linux |
 | **`scripts/bc250-cu-*`** | CU health testing, masking, verification scripts |
 | **`docs/`** | Technical report, whitepaper PDF+LaTeX |
+| **`bc250-alpine-6.18.53/`** | Patch set for Alpine Linux 6.18.53 kernel |
+| **`kernel-6.18.53-context/`** | Kernel source context (amdgpu headers, smu_cmn) |
 | **`scripts/bc250-enable-40cu-arch.sh`** | Arch Linux variant (PKGBUILD-based) |
 | **`scripts/bc250-enable-40cu-fedora.sh`** | Fedora variant (DNF-based) |
 

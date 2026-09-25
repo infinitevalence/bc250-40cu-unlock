@@ -20,6 +20,7 @@ BUILDDIR="/tmp/bc250-40cu-build"
 CONF40="/etc/modprobe.d/bc250-40cu.conf"
 BACKUP_SUFFIX=".bc250-backup-$(date +%Y%m%d)"
 BC250_PCI_ID="13fe"
+BUILDLOG="/tmp/bc250-40cu-build.log"
 
 info()  { printf '\033[0;32m[+]\033[0m %s\n' "$*" >&2; }
 warn()  { printf '\033[0;33m[!]\033[0m %s\n' "$*" >&2; }
@@ -197,6 +198,7 @@ patch_source() {
 
 	info "Applying $(echo "$selected_patches" | wc -w) selected patches..."
 	cd "$MODSRC"
+	: > "$BUILDLOG"
 
 	# Sort patch numbers numerically and apply in order
 	for pnum in $(echo "$selected_patches" | tr -s ' ' '\n' | sort -n); do
@@ -205,8 +207,8 @@ patch_source() {
 		patchfile="$(find "$patchdir" -maxdepth 1 -name "${pnum}-"*".patch" | head -1)"
 		[ -n "$patchfile" ] || die "Patch file for $pnum not found"
 
-		if ! patch -p1 < "$patchfile"; then
-			err "Patch $pnum failed to apply"
+		if ! patch -p1 < "$patchfile" >> "$BUILDLOG" 2>&1; then
+			err "Patch $pnum failed to apply. See build log: $BUILDLOG"
 			exit 1
 		fi
 
@@ -221,16 +223,19 @@ patch_source() {
 build_module() {
 	amdgpu_dir="${MODSRC}/drivers/gpu/drm/amd/amdgpu"
 	info "Configuring kernel configuration..."
-	cp /boot/config-"${KVER}" "${MODSRC}/.config"
-	make -C "${MODSRC}" oldconfig >/dev/null 2>&1 || true
+	cp /boot/config-"${KVER}" "${MODSRC}/.config" >> "$BUILDLOG" 2>&1 || true
+	make -C "${MODSRC}" oldconfig >> "$BUILDLOG" 2>&1 || true
 
-	info "Preparing kernel source tree (this may take a moment)..."
-	make -C "${MODSRC}" prepare modules_prepare
-	cp "${MODDIR}/build/Module.symvers" "${MODSRC}/"
+	info "Preparing kernel source tree..."
+	make -C "${MODSRC}" prepare modules_prepare >> "$BUILDLOG" 2>&1
+	cp "${MODDIR}/build/Module.symvers" "${MODSRC}/" >> "$BUILDLOG" 2>&1 || true
 
-	info "Compiling amdgpu module with $(nproc) jobs..."
-	make -C "${MODSRC}" M="$amdgpu_dir" clean
-	make -C "${MODSRC}" M="$amdgpu_dir" -j"$(nproc)" modules
+	info "Compiling amdgpu module with $(nproc) jobs (log: $BUILDLOG)..."
+	make -C "${MODSRC}" M="$amdgpu_dir" clean >> "$BUILDLOG" 2>&1
+	if ! make -C "${MODSRC}" M="$amdgpu_dir" -j"$(nproc)" modules >> "$BUILDLOG" 2>&1; then
+		err "Compilation failed. Check build log at: $BUILDLOG"
+		exit 1
+	fi
 
 	ko_path="${amdgpu_dir}/amdgpu.ko"
 	[ -f "$ko_path" ] || die "Compilation failed: amdgpu.ko not generated."
@@ -317,7 +322,12 @@ for _arg in "$@"; do
 	esac
 done
 
-case "${1:-}" in
+action="${1:-}"
+if [ -n "$action" ] && [ "$action" != "status" ] && [ "$(id -u)" -ne 0 ]; then
+	die "This script must be run as root. Please run with: doas $0 $action"
+fi
+
+case "$action" in
 	build)  do_build ;;
 	enable) do_enable ;;
 	disable) do_disable ;;

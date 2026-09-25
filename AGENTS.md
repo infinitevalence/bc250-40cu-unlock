@@ -135,3 +135,5 @@ SSH_AUTH_SOCK=/run/user/1000/openssh_agent git push origin ALPINE
 > openssh-agent at `/run/user/1000/openssh_agent` must be used — a fresh
 > `eval $(ssh-agent -s)` will create an orphaned agent whose socket the
 > system won't resolve.
+> 
+> **Agent Execution Note:** For non-interactive agent runs where passphrase prompting blocks execution, use an unencrypted deployment key or configure an HTTPS remote with a Personal Access Token (PAT) in `git remote set-url origin https://<token>@github.com/infinitevalence/bc250-40cu-unlock.git`.

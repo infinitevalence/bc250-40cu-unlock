@@ -157,19 +157,18 @@ patch_source() {
 		*) continue ;;
 		esac
 
-		# Determine default: y/N for opt-in patches, Y/n for everything else
-		default="Y"
-		default_char="y"
-		prompt_suffix="/n"
+		# Determine default and prompt suffix
 		if echo "$skip_default" | grep -qw "$pnum"; then
 			default="n"
-			default_char="N"
-			prompt_suffix="/Y"
+			prompt_suffix="(y/N)"
+		else
+			default="Y"
+			prompt_suffix="(Y/n)"
 		fi
 
-		# Prompt — single printf, default shown inline
-		printf 'Apply patch %s: %s [default: %s]: ' \
-			"$pnum" "$desc" "$default" >&2
+		# Prompt — clean and concise
+		printf 'Apply patch %s: %s %s: ' \
+			"$pnum" "$desc" "$prompt_suffix" >&2
 		read -r ans
 		ans="$(echo "$ans" | tr '[:upper:]' '[:lower:]')"
 
@@ -206,7 +205,7 @@ patch_source() {
 		patchfile="$(find "$patchdir" -maxdepth 1 -name "${pnum}-"*".patch" | head -1)"
 		[ -n "$patchfile" ] || die "Patch file for $pnum not found"
 
-		if ! patch -p1 < "$patchfile" > /dev/null 2>&1; then
+		if ! patch -p1 < "$patchfile"; then
 			err "Patch $pnum failed to apply"
 			exit 1
 		fi

@@ -113,7 +113,7 @@ patch_source() {
 	sorted_nums="$(printf '%s\n' $patch_nums | sort -n)"
 
 	# Patches that default to NO (opt-in)
-	skip_default="12 17 19 21 28"
+	skip_default="12 17 19 21 28 29 30"
 
 	# Collect selected patches
 	selected_patches=""
@@ -168,8 +168,8 @@ patch_source() {
 		fi
 
 		# Prompt — single printf, default shown inline
-		printf '  [%s] Apply patch %s? %s (Enter=%s, type y/yes or n/no): ' \
-			"$default_char" "$pnum" "$desc" "$default" >&2
+		printf 'Apply patch %s: %s [default: %s]: ' \
+			"$pnum" "$desc" "$default" >&2
 		read -r ans
 		ans="$(echo "$ans" | tr '[:upper:]' '[:lower:]')"
 

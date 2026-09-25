@@ -1,12 +1,30 @@
-diff --git a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
-index a8961a8..3384175 100644
---- a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
-+++ b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c
-@@ -1195,3 +1195,141 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
- 		*backend_workload_mask |= 1 << workload_type;
- 	}
+Add the smu_cmn.c definitions for the send-raw debugfs interface that 0008
+(cac-weight-and-sendraw-debugfs) declares + calls but does not define. Without
+this the P01-P18 series fails to link (smu_cmn_create_send_raw_debugfs undefined).
+Extracted from the board's vendored amdgpu/0001-add-debugfs-smu-send-raw.patch,
+smu_cmn.c hunk only (the .h decl + amdgpu_smu.c call are already in 0008).
+--- a/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c	2025-01-15 00:00:00.000000000 +0000
++++ b/drivers/gpu/drm/amd/pm/swsmu/smu_cmn.c	2025-01-15 00:00:00.000000000 +0000
+@@ -1444,3 +1444,161 @@
+
+ 	return ret;
  }
 +
++/**
++ * smu_cmn_send_raw_smc_msg -- send arbitrary u16 msgid, return raw resp
++ * @smu: SMU context
++ * @raw_msg_index: any u16 msgid (NOT translated through cmn2asic mapping)
++ * @param: u32 parameter (-> first arg reg, typically C2PMSG_82)
++ * @extra: u32 second arg (-> arg_regs[1], typically C2PMSG_81 — used by
++ *  0x2f/0x30/0x33 for the value/weight)
++ * @resp_out: out: raw response register (0x01 OK, 0xFE unknown, 0xFF fail)
++ * @arg_out:  out: arg_regs[0] at completion
++ *
++ * Designed for SMU reverse-engineering. Takes smu->message_lock so it
++ * serializes with amdgpu's metric polling and cannot wedge the mailbox.
++ * Returns 0 regardless of resp code (caller inspects @resp_out); -errno
++ * only on hard failure.
++ */
 +int smu_cmn_send_raw_smc_msg(struct smu_context *smu,
 +			     uint16_t raw_msg_index,
 +			     uint32_t param,
